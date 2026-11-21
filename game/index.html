@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nightshade — a stealth game</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #070912; color: #e8ecff;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; align-items: center; padding: 16px;
+  }
+  h1 { margin: 4px 0 2px; font-size: 26px; letter-spacing: 2px; }
+  h1 span { color: #7cf2ab; }
+  .sub { color: #9aa3c0; margin: 0 0 12px; font-size: 14px; }
+  #hud {
+    display: flex; gap: 18px; align-items: center; width: 768px; max-width: 96vw;
+    background: #12172a; border: 1px solid #2a3352; border-radius: 8px;
+    padding: 6px 12px; margin-bottom: 10px; font-size: 14px;
+  }
+  #hud .spacer { flex: 1; }
+  .eye { font-weight: 700; }
+  .eye.calm { color: #7cf2ab; }
+  .eye.wary { color: #ffb347; }
+  .eye.alert { color: #ff6b5e; }
+  #hud button {
+    background: #1d2440; color: #e8ecff; border: 1px solid #2a3352;
+    border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 14px;
+  }
+  #hud button:hover { background: #28304f; }
+  #wrap { position: relative; width: 768px; max-width: 96vw; }
+  canvas {
+    display: block; width: 100%; border: 1px solid #2a3352; border-radius: 8px;
+    background: #0a0d18; cursor: crosshair;
+  }
+  #toast {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    background: rgba(10, 13, 26, 0.88); border: 1px solid #3a4568; color: #ffd166;
+    padding: 6px 14px; border-radius: 20px; font-size: 14px; opacity: 0;
+    transition: opacity 0.25s; pointer-events: none; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+  .screen {
+    position: absolute; inset: 0; background: rgba(5, 7, 18, 0.9);
+    border-radius: 8px; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; padding: 24px; gap: 10px;
+  }
+  .screen.hidden { display: none; }
+  .screen h2 { margin: 0; font-size: 30px; }
+  .screen p { margin: 0; color: #b9c0da; max-width: 560px; line-height: 1.5; }
+  .screen .big { font-size: 20px; color: #7cf2ab; }
+  #level-list { display: flex; flex-direction: column; gap: 6px; width: 420px; max-width: 90%; }
+  #level-list button {
+    background: #1d2440; color: #e8ecff; border: 1px solid #2a3352; border-radius: 6px;
+    padding: 8px 12px; cursor: pointer; font-size: 15px; text-align: left;
+  }
+  #level-list button:hover:not(:disabled) { background: #28304f; }
+  #level-list button:disabled { opacity: 0.45; cursor: default; }
+  .screen > button, .row > button {
+    background: #2c7a4b; color: #fff; border: none; border-radius: 6px;
+    padding: 10px 22px; cursor: pointer; font-size: 16px; margin-top: 6px;
+  }
+  .screen > button:hover, .row > button:hover { background: #35935c; }
+  .row { display: flex; gap: 10px; }
+  .row > button.secondary { background: #1d2440; border: 1px solid #2a3352; }
+  .controls { color: #9aa3c0; font-size: 13px; margin-top: 12px; text-align: center; line-height: 1.7; }
+  .controls b { color: #dfe6ff; }
+</style>
+</head>
+<body>
+  <h1>NIGHT<span>SHADE</span></h1>
+  <p class="sub">A stealth game — recover the stolen letters and leave unseen.</p>
+  <div id="hud">
+    <span id="hud-level">1. The Garden Wall</span>
+    <span id="hud-letters">✉ 0/2</span>
+    <span id="hud-pebbles">● 3</span>
+    <span id="hud-eye" class="eye calm">👁 unseen</span>
+    <span class="spacer"></span>
+    <span id="hud-time">0:00</span>
+    <button id="btn-mute" title="Mute (M)">🔊</button>
+    <button id="btn-pause" title="Pause (P)">⏸</button>
+  </div>
+  <div id="wrap">
+    <canvas id="game" width="768" height="512"></canvas>
+    <div id="toast"></div>
+    <div id="screen-title" class="screen">
+      <h2>NIGHTSHADE</h2>
+      <p class="big">The estate sleeps. The letters are inside.</p>
+      <p>You are Wren, a night courier. Wardens patrol with lanterns — their
+      vision cones are the only thing that can catch you. Hide in shadows and
+      bushes, sneak across gravel, toss pebbles to lure wardens away, gather
+      every letter, and leave by the green gate unseen.</p>
+      <div id="level-list"></div>
+      <button id="btn-begin">Begin the night</button>
+      <p style="font-size:13px">Progress and best stars are saved in your browser.</p>
+    </div>
+    <div id="screen-intro" class="screen hidden">
+      <h2 id="intro-title">The Garden Wall</h2>
+      <p id="intro-text"></p>
+      <button id="btn-intro-go">Slip in</button>
+      <button id="btn-title" class="secondary" style="background:#1d2440;border:1px solid #2a3352">Back to levels</button>
+    </div>
+    <div id="screen-over" class="screen hidden">
+      <h2>Caught!</h2>
+      <p>The warden found you.</p>
+      <div class="row">
+        <button id="btn-retry">Try again (R)</button>
+        <button id="btn-again" class="secondary">Levels</button>
+      </div>
+    </div>
+  </div>
+  <p class="controls">
+    <b>WASD / arrows</b> move &nbsp;·&nbsp; <b>Shift</b> sneak (slow, silent) &nbsp;·&nbsp;
+    <b>Click</b> throw a pebble &nbsp;·&nbsp; <b>P</b> pause &nbsp;·&nbsp; <b>R</b> restart &nbsp;·&nbsp; <b>M</b> mute<br>
+    Shadows halve how fast wardens notice you. Bushes hide you unless a warden walks right up.
+    Gravel is loud when you run. Watch-lamps call the nearest warden.
+  </p>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

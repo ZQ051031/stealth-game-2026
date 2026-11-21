@@ -1,0 +1,4 @@
+.chrome-playtest/
+.chrome-shots/
+node_modules/
+out/
